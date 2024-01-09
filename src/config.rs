@@ -1,8 +1,7 @@
+use anyhow::Result;
 use config::{Environment, File};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use anyhow::Result;
-use std::error::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -13,7 +12,7 @@ pub struct Config {
 #[derive(thiserror::Error, Debug)]
 enum ConfigError {
     #[error("No DB path provided")]
-    NoDBProvidedError()
+    NoDBProvidedError,
 }
 
 impl Config {
@@ -31,7 +30,7 @@ impl Config {
 
     pub fn validate(&self) -> Result<()> {
         if self.db_path.is_none() {
-            return Err(ConfigError::NoDBProvidedError())?;
+            return Err(ConfigError::NoDBProvidedError)?;
         }
         Ok(())
     }

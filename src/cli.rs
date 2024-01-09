@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(name = "koldpress")]
@@ -14,7 +14,7 @@ pub(crate) struct Cli {
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
     #[command(arg_required_else_help = true)]
-    Books (BooksArgs),
+    Books(BooksArgs),
 }
 
 #[derive(Debug, Args)]
@@ -25,5 +25,11 @@ pub(crate) struct BooksArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum BookCommands {
-    List
+    List,
+    Get(GetBookArgs),
+}
+
+#[derive(Args, Debug)]
+pub(crate) struct GetBookArgs {
+    pub(crate) content_id: Option<String>,
 }

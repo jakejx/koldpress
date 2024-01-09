@@ -30,10 +30,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let library = KoboLibrary::new(config.db_path.ok_or(anyhow!("This should never happen"))?)?;
-    let books = library.get_books()?;
-    for book in books {
-        writeln!(stdout, "Title: {}, Author: {}", book.title, book.author)?;
-    }
+    let book = library.get_book("file:///mnt/onboard/Fadell, Tony/Build_ An Unorthodox Guide to Making Things Worth Making - the New York Times Bestseller - Tony Fadell.kepub.epub".to_string())?.unwrap();
+    // for book in books {
+    //     writeln!(stdout, "Title: {}, Author: {}", book.title, book.author)?;
+    // }
+    writeln!(stdout, "Title: {}, Author: {}", book.title, book.author)?;
 
     Ok(())
 }
