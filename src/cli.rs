@@ -26,10 +26,4 @@ pub(crate) struct BooksArgs {
 #[derive(Debug, Subcommand)]
 pub(crate) enum BookCommands {
     List,
-    Get(GetBookArgs),
-}
-
-#[derive(Args, Debug)]
-pub(crate) struct GetBookArgs {
-    pub(crate) content_id: Option<String>,
 }

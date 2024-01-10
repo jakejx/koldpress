@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use etcetera::{choose_app_strategy, AppStrategy};
 use koldpress::config::Config;
-use koldpress::kobo::KoboLibrary;
+use koldpress::kobo::Library;
 use std::io::Write;
 mod cli;
 
@@ -29,12 +29,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    let library = KoboLibrary::new(config.db_path.ok_or(anyhow!("This should never happen"))?)?;
-    let book = library.get_book("file:///mnt/onboard/Fadell, Tony/Build_ An Unorthodox Guide to Making Things Worth Making - the New York Times Bestseller - Tony Fadell.kepub.epub".to_string())?.unwrap();
-    // for book in books {
-    //     writeln!(stdout, "Title: {}, Author: {}", book.title, book.author)?;
-    // }
-    writeln!(stdout, "Title: {}, Author: {}", book.title, book.author)?;
+    let library = Library::new(config.db_path.ok_or(anyhow!("This should never happen"))?)?;
+    // let book = library.get_book("file:///mnt/onboard/Fadell, Tony/Build_ An Unorthodox Guide to Making Things Worth Making - the New York Times Bestseller - Tony Fadell.kepub.epub".to_string())?.unwrap();
+    let bookmarks = library.get_bookmarks().unwrap();
 
     Ok(())
 }
