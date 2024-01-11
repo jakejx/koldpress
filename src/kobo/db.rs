@@ -56,6 +56,8 @@ pub(crate) enum Bookmark {
     Hidden,
     #[iden = "VolumeID"]
     VolumeId,
+    #[iden = "ChapterProgress"]
+    ChapterProgress,
 }
 
 pub fn books_query() -> SelectStatement {
@@ -70,6 +72,12 @@ pub fn books_query() -> SelectStatement {
         .to_owned()
 }
 
+pub fn bookmarks_for_book_query(volume_id: &str) -> SelectStatement {
+    bookmarks_query()
+        .and_where(Expr::col(Bookmark::VolumeId).eq(volume_id))
+        .to_owned()
+}
+
 pub fn bookmarks_query() -> SelectStatement {
     Query::select()
         .column((Bookmark::Table, Bookmark::ContentId))
@@ -81,6 +89,8 @@ pub fn bookmarks_query() -> SelectStatement {
         .from(Bookmark::Table).left_join(Content::Table, Expr::col((Bookmark::Table, Bookmark::ContentId)).equals((Content::Table, Content::ChapterIDBookmarked)))
         .and_where(Expr::col(Bookmark::Text).is_not_null())
         .and_where(Expr::col(Bookmark::Hidden).eq("false"))
-        .order_by(Bookmark::VolumeId, Order::Desc)
-        .order_by(Content::VolumeIndex, Order::Asc).to_owned()
+        .order_by(Bookmark::VolumeId, Order::Asc)
+        .order_by(Content::VolumeIndex, Order::Asc)
+        .order_by(Bookmark::ChapterProgress, Order::Asc)
+        .to_owned()
 }

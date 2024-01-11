@@ -2,6 +2,7 @@
 name = "koldpress"
 version = "0.1.0"
 edition = "2021"
+default-run = "main"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,9 +10,12 @@ edition = "2021"
 anyhow = "1.0.79"
 clap = { version = "4.4.14", features = ["derive"] }
 config = "0.13.4"
+epub = "2.1.1"
 etcetera = "0.8.0"
+inquire = "0.6.2"
 rusqlite = { version = "0.30.0", features = ["bundled"] }
 sea-query = "0.30.6"
 sea-query-rusqlite = "0.5.0"
 serde = { version = "1.0.195", features = ["derive"] }
+serde_json = "1.0.111"
 thiserror = "1.0.56"

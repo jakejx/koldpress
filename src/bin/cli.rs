@@ -15,6 +15,8 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     #[command(arg_required_else_help = true)]
     Books(BooksArgs),
+    #[command(arg_required_else_help = true)]
+    Bookmarks(BookmarkArgs),
 }
 
 #[derive(Debug, Args)]
@@ -26,4 +28,21 @@ pub(crate) struct BooksArgs {
 #[derive(Debug, Subcommand)]
 pub(crate) enum BookCommands {
     List,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct BookmarkArgs {
+    #[command(subcommand)]
+    pub(crate) command: BookmarkCommands,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum BookmarkCommands {
+    Extract(ExtractArgs),
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct ExtractArgs {
+    #[arg(short, long, default_value_t = false)]
+    pub(crate) all: bool,
 }
