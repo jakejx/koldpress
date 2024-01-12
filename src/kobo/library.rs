@@ -28,7 +28,7 @@ pub struct Library {
 pub struct Bookmark {
     pub content_id: String,
     /// The chapter title
-    pub title: Option<String>,
+    pub chapter_title: Option<String>,
     pub text: String,
 }
 
@@ -68,24 +68,21 @@ impl Library {
     }
 
     pub fn get_bookmarks(&self) -> Result<Vec<Bookmark>> {
-        let (sql, values) = db::bookmarks_query().build_rusqlite(SqliteQueryBuilder);
+        let sql = db::bookmarks_query();
         println!("{}", sql); // TODO: debug logging
-        println!("{:?}", values); // TODO: debug logging
         let mut stmt = self.db.prepare(sql.as_str())?;
         let bookmarks = stmt
-            .query_map(&*values.as_params(), |row| Bookmark::try_from(row))?
+            .query_map([], |row| Bookmark::try_from(row))?
             .collect::<core::result::Result<Vec<_>, _>>()?;
         Ok(bookmarks)
     }
 
     pub fn get_bookmarks_for_book(&self, book: &Book) -> Result<Vec<Bookmark>> {
-        let (sql, values) =
-            db::bookmarks_for_book_query(&book.content_id).build_rusqlite(SqliteQueryBuilder);
+        let sql = db::bookmarks_for_book_query();
         println!("{}", sql); // TODO: debug logging
-        println!("{:?}", values); // TODO: debug logging
         let mut stmt = self.db.prepare(sql.as_str())?;
         let bookmarks = stmt
-            .query_map(&*values.as_params(), |row| Bookmark::try_from(row))?
+            .query_map([book.content_id.as_str()], |row| Bookmark::try_from(row))?
             .collect::<core::result::Result<Vec<_>, _>>()?;
         Ok(bookmarks)
     }

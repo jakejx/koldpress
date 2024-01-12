@@ -1,5 +1,5 @@
 use rusqlite::Row;
-use sea_query::{Alias, Expr, Func, Iden, Order, OrderedStatement, Query, SelectStatement};
+use sea_query::{Expr, Iden, Query, SelectStatement};
 
 impl TryFrom<&Row<'_>> for super::library::Book {
     type Error = rusqlite::Error;
@@ -19,7 +19,7 @@ impl TryFrom<&Row<'_>> for super::library::Bookmark {
     fn try_from(row: &Row) -> core::result::Result<Self, Self::Error> {
         Ok(Self {
             content_id: row.get(Bookmark::ContentId.to_string().as_str())?,
-            title: row.get("Title")?,
+            chapter_title: row.get("ChapterTitle")?,
             text: row.get(Bookmark::Text.to_string().as_str())?,
         })
     }
@@ -72,25 +72,92 @@ pub fn books_query() -> SelectStatement {
         .to_owned()
 }
 
-pub fn bookmarks_for_book_query(volume_id: &str) -> SelectStatement {
-    bookmarks_query()
-        .and_where(Expr::col(Bookmark::VolumeId).eq(volume_id))
-        .to_owned()
+/// SQL query for retrieving bookmarks and their chapter title.
+/// In Kobo's DB, Content with ContentType 899 are the "chapter titles". But the
+/// ContentID for these chapter titles are not the ContentIDs used by the
+/// Bookmark. Usually the chapter title's ContentID is the bookmark's ContentID
+/// with some suffix (where the suffix refers to some id in the epub HTML).
+///
+/// The chapter titles (content type = 899) are JOINed with the bookmark
+/// content's (content type = 9) using a LIKE and the ContentID for both the
+/// chapter title and the bookmark content are kept for later.
+/// But there are cases where the chapter does not match to any chapter title.
+/// The chapter title from an "earlier" chapter, identified by the VolumeIndex,
+/// is used.
+///
+/// The Bookmarks are JOINed with the resolved chapter titles using either the
+/// chapter title ContentID or the bookmark content's ContentID. From
+/// observation, the Bookmark's ContentID can refer to either, so both are
+/// tried.
+const BOOKMARKS_QUERY: &str = r#"
+WITH chapters AS (
+	SELECT
+		ContentID,
+		Title,
+		VolumeIndex
+	FROM
+		Content
+	WHERE
+		ContentType = 899
+),
+partial AS (
+	SELECT
+		c1.BookTitle,
+		c1.ContentID,
+		chapters.ContentID AS ChapterContentID,
+		c1.VolumeIndex,
+		chapters.Title AS ChapterTitle
+	FROM
+		Content AS c1
+	LEFT JOIN chapters ON chapters.ContentID LIKE c1.ContentID || '%'
+WHERE
+	ContentType = 9
+),
+-- Fill missing chapter titles based on volume index
+chapter_titles AS (
+	SELECT
+		ContentID,
+		ChapterContentID,
+		COALESCE(ChapterTitle,
+			(
+				SELECT
+					ChapterTitle FROM partial p2
+				WHERE
+					ChapterTitle IS NOT NULL
+					AND p2.BookTitle = p1.BookTitle
+					AND p2.VolumeIndex < p1.VolumeIndex
+				ORDER BY
+					BookTitle,
+					VolumeIndex DESC
+				LIMIT 1)) AS ChapterTitle
+	FROM
+		partial p1
+)
+-- JOIN with the bookmarks and try both ContentIDs
+SELECT
+	b.ContentID,
+	b.Text,
+	COALESCE((
+		SELECT
+			ChapterTitle FROM chapter_titles
+		WHERE
+			ChapterContentID LIKE b.ContentID || '%'),
+       (SELECT
+            ChapterTitle FROM chapter_titles ct
+        WHERE
+            ct.ContentID = b.ContentID)) AS ChapterTitle
+FROM
+	Bookmark b
+WHERE
+	Hidden = 'false'
+	AND Text IS NOT NULL
+	AND Text <> ''
+"#;
+
+pub fn bookmarks_query() -> String {
+    BOOKMARKS_QUERY.to_string()
 }
 
-pub fn bookmarks_query() -> SelectStatement {
-    Query::select()
-        .column((Bookmark::Table, Bookmark::ContentId))
-        .expr_as(Func::coalesce([
-            Expr::col(Content::Title).into(),
-            Expr::cust("(SELECT Title FROM content WHERE content.ContentID > Bookmark.ContentID AND content.ChapterIDBookmarked IS NOT NULL ORDER BY content.ContentID ASC LIMIT 1)"),
-        ]), Alias::new("Title"))
-        .column(Bookmark::Text)
-        .from(Bookmark::Table).left_join(Content::Table, Expr::col((Bookmark::Table, Bookmark::ContentId)).equals((Content::Table, Content::ChapterIDBookmarked)))
-        .and_where(Expr::col(Bookmark::Text).is_not_null())
-        .and_where(Expr::col(Bookmark::Hidden).eq("false"))
-        .order_by(Bookmark::VolumeId, Order::Asc)
-        .order_by(Content::VolumeIndex, Order::Asc)
-        .order_by(Bookmark::ChapterProgress, Order::Asc)
-        .to_owned()
+pub fn bookmarks_for_book_query() -> String {
+    BOOKMARKS_QUERY.to_string() + "AND VolumeID = ?1"
 }
