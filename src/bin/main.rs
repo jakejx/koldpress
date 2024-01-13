@@ -5,7 +5,18 @@ use etcetera::{choose_app_strategy, AppStrategy};
 use inquire::Select;
 use koldpress::config::Config;
 use koldpress::kobo::Library;
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    str::FromStr,
+};
+use tracing::{info, Level};
+use tracing_subscriber::{
+    filter::{self, LevelFilter},
+    fmt,
+    prelude::__tracing_subscriber_SubscriberExt,
+    util::SubscriberInitExt,
+    EnvFilter,
+};
 
 mod cli;
 
@@ -17,9 +28,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         author: "jakejx".to_string(),
     })
     .unwrap();
+
     let config_path = strategy.in_config_dir("config");
-    writeln!(stdout, "Reading config from: {}", config_path.display())?;
+    info!("Reading config from: {}", config_path.display());
     let args = cli::Cli::parse();
+    init_tracing(args.verbose);
 
     let mut config = Config::new(config_path)?;
 
@@ -59,10 +72,20 @@ fn extract_highlights(
         false => {
             let books = library.get_books().context("Failed to get books")?;
             let book = Select::new("Book:", books).with_page_size(10).prompt()?;
-            writeln!(io, "Retreving bookmarks for {}", book)?;
+            info!("Retreving bookmarks for {}", book);
             let bookmarks = library.get_bookmarks_for_book(&book)?;
             writeln!(io, "{}", serde_json::to_string_pretty(&bookmarks)?)?;
         }
     }
     Ok(())
+}
+
+fn init_tracing(verbosity: u8) {
+    let filter =
+        LevelFilter::from_str(&verbosity.to_string()).expect("verbosity level not a number");
+    let format = fmt::layer().compact().with_writer(io::stderr);
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(format)
+        .init();
 }

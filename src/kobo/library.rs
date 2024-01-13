@@ -5,6 +5,7 @@ use sea_query::{Expr, SqliteQueryBuilder};
 use sea_query_rusqlite::RusqliteBinder;
 use serde::Serialize;
 use std::{fmt::Display, path::PathBuf};
+use tracing::info;
 
 #[derive(Debug, Serialize)]
 pub struct Book {
@@ -46,7 +47,7 @@ impl Library {
 
     pub fn get_books(&self) -> Result<Vec<Book>> {
         let (sql, values) = db::books_query().build_rusqlite(SqliteQueryBuilder);
-        println!("{}", sql); // TODO: turn this into a debug
+        info!(query = sql, "Retrieving books");
         let mut stmt = self.db.prepare(sql.as_str())?;
         let books = stmt
             .query_map(&*values.as_params(), |row| Book::try_from(row))?
@@ -56,10 +57,10 @@ impl Library {
 
     pub fn get_book(&self, content_id: String) -> Result<Option<Book>> {
         let (sql, values) = db::books_query()
-            .and_where(Expr::col(db::Content::ContentId).eq(content_id))
+            .and_where(Expr::col(db::Content::ContentId).eq(&content_id))
             .limit(1)
             .build_rusqlite(SqliteQueryBuilder);
-        println!("{}", sql); // TODO: debug logging
+        info!(query = sql, content_id, "Retrieving book");
         let mut stmt = self.db.prepare(sql.as_str())?;
         let book = stmt
             .query_row(&*values.as_params(), |row| Book::try_from(row))
@@ -69,7 +70,7 @@ impl Library {
 
     pub fn get_bookmarks(&self) -> Result<Vec<Bookmark>> {
         let sql = db::bookmarks_query();
-        println!("{}", sql); // TODO: debug logging
+        info!(query = sql, "Retrieving bookmarks");
         let mut stmt = self.db.prepare(sql.as_str())?;
         let bookmarks = stmt
             .query_map([], |row| Bookmark::try_from(row))?
@@ -79,7 +80,11 @@ impl Library {
 
     pub fn get_bookmarks_for_book(&self, book: &Book) -> Result<Vec<Bookmark>> {
         let sql = db::bookmarks_for_book_query();
-        println!("{}", sql); // TODO: debug logging
+        info!(
+            query = sql,
+            book = book.title,
+            "Retrieving bookmarks for book"
+        );
         let mut stmt = self.db.prepare(sql.as_str())?;
         let bookmarks = stmt
             .query_map([book.content_id.as_str()], |row| Bookmark::try_from(row))?

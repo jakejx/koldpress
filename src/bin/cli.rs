@@ -9,6 +9,14 @@ pub(crate) struct Cli {
     /// subcommands
     #[command(subcommand)]
     pub(crate) command: Commands,
+    #[arg(
+        long,
+        short = 'v',
+        action = clap::ArgAction::Count,
+        global = true,
+        help = "Increase logging verbosity",
+    )]
+    pub(crate) verbose: u8,
 }
 
 #[derive(Debug, Subcommand)]
