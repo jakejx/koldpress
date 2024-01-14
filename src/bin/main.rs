@@ -58,18 +58,19 @@ fn extract_highlights(
     args: ExtractArgs,
     mut io: Box<dyn Write>,
 ) -> anyhow::Result<()> {
-    match args.all {
-        true => {
-            let bookmarks = library.get_bookmarks()?;
-            writeln!(io, "{}", serde_json::to_string_pretty(&bookmarks)?)?;
-        }
+    let bookmarks = match args.all {
+        true => library.get_bookmarks()?,
         false => {
             let books = library.get_books().context("Failed to get books")?;
             let book = Select::new("Book:", books).with_page_size(10).prompt()?;
             info!("Retreving bookmarks for {}", book);
-            let bookmarks = library.get_bookmarks_for_book(&book)?;
-            writeln!(io, "{}", serde_json::to_string_pretty(&bookmarks)?)?;
+            library.get_bookmarks_for_book(&book)?
         }
+    };
+
+    match args.format {
+        cli::Format::Json => write!(io, "{}", serde_json::to_string_pretty(&bookmarks)?)?,
+        cli::Format::Markdown => todo!(),
     }
     Ok(())
 }

@@ -1,10 +1,17 @@
+use crate::kobo::db::BookmarkRow;
+
 use super::db;
 use anyhow::{Context, Result};
+use itertools::Itertools;
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use sea_query::{Expr, SqliteQueryBuilder};
 use sea_query_rusqlite::RusqliteBinder;
 use serde::Serialize;
-use std::{fmt::Display, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Display,
+    path::PathBuf,
+};
 use tracing::info;
 
 #[derive(Debug, Serialize)]
@@ -75,19 +82,19 @@ impl Library {
         Ok(book)
     }
 
-    pub fn get_bookmarks(&self) -> Result<Vec<Bookmark>> {
+    pub fn get_bookmarks(&self) -> Result<BTreeMap<String, Vec<Chapter>>> {
         let sql = db::bookmarks_query();
         info!(query = sql, "Retrieving bookmarks");
         let mut stmt = self.db.prepare(sql.as_str())?;
         let bookmarks = stmt
-            .query_map([], |row| Bookmark::try_from(row))?
+            .query_map([], |row| BookmarkRow::try_from(row))?
             .collect::<core::result::Result<Vec<_>, _>>()?;
-        Ok(bookmarks)
+        Ok(Library::group_by_chapters(bookmarks))
     }
 
     // TODO: for now we return a flat list, eventually we can use the epub
     // information to create a tree based on the TOC instead.
-    pub fn get_bookmarks_for_book(&self, book: &Book) -> Result<Vec<Chapter>> {
+    pub fn get_bookmarks_for_book(&self, book: &Book) -> Result<BTreeMap<String, Vec<Chapter>>> {
         // TODO: extract out the logic for retrieving bookmarks from grouping them by chapter
         let sql = db::bookmarks_for_book_query();
         info!(
@@ -97,44 +104,29 @@ impl Library {
         );
         let mut stmt = self.db.prepare(sql.as_str())?;
         let bookmarks = stmt
-            .query_map([book.content_id.as_str()], |row| Bookmark::try_from(row))?
+            .query_map([book.content_id.as_str()], |row| BookmarkRow::try_from(row))?
             .collect::<core::result::Result<Vec<_>, _>>()?;
         info!("Extracted {} bookmarks", bookmarks.len());
-        let mut chapters: Vec<Chapter> = Vec::new();
-        let mut current_chapter: Option<Chapter> = None;
-        for bookmark in bookmarks {
-            match current_chapter {
-                None => {
-                    current_chapter.replace(Chapter {
-                        title: bookmark.chapter_title.clone().unwrap_or("".to_string()),
-                        bookmarks: vec![],
+        Ok(Library::group_by_chapters(bookmarks))
+    }
+
+    fn group_by_chapters(bookmarks: Vec<BookmarkRow>) -> BTreeMap<String, Vec<Chapter>> {
+        bookmarks
+            .into_iter()
+            .group_by(|row| row.book_title.clone())
+            .into_iter()
+            .map(|(title, bookmarks)| {
+                let chapters = bookmarks
+                    .group_by(|bm| bm.chapter_title.clone().unwrap_or("".to_string()))
+                    .into_iter()
+                    .map(|(chapter_title, bookmarks)| Chapter {
+                        title: chapter_title,
                         children: vec![],
-                    });
-                }
-                Some(ref chapter)
-                    if chapter.title
-                        != bookmark.chapter_title.clone().unwrap_or("".to_string()) =>
-                {
-                    let next_chapter = Chapter {
-                        title: bookmark.chapter_title.clone().unwrap_or("".to_string()),
-                        bookmarks: vec![],
-                        children: vec![],
-                    };
-                    let previous_chapter = current_chapter.replace(next_chapter);
-                    chapters.push(previous_chapter.expect("Chapter cannot be None"));
-                }
-                _ => (),
-            };
-
-            if let Some(chapter) = current_chapter.as_mut() {
-                chapter.bookmarks.push(bookmark);
-            }
-        }
-
-        if let Some(chapter) = current_chapter {
-            chapters.push(chapter);
-        }
-
-        Ok(chapters)
+                        bookmarks: bookmarks.map(|bm| bm.into()).collect(),
+                    })
+                    .collect_vec();
+                (title, chapters)
+            })
+            .collect::<BTreeMap<String, Vec<Chapter>>>()
     }
 }

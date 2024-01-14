@@ -1,6 +1,38 @@
 use rusqlite::Row;
 use sea_query::{Expr, Iden, Query, SelectStatement, WithClause};
 
+#[derive(Debug, Clone)]
+pub(crate) struct BookmarkRow {
+    pub content_id: String,
+    pub book_title: String,
+    /// The chapter title
+    pub chapter_title: Option<String>,
+    pub text: String,
+}
+
+impl Into<super::library::Bookmark> for BookmarkRow {
+    fn into(self) -> super::library::Bookmark {
+        super::library::Bookmark {
+            content_id: self.content_id,
+            chapter_title: self.chapter_title,
+            text: self.text,
+        }
+    }
+}
+
+impl TryFrom<&Row<'_>> for BookmarkRow {
+    type Error = rusqlite::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            content_id: row.get(Bookmark::ContentId.to_string().as_str())?,
+            book_title: row.get("BookTitle")?,
+            chapter_title: row.get("ChapterTitle")?,
+            text: row.get(Bookmark::Text.to_string().as_str())?,
+        })
+    }
+}
+
 impl TryFrom<&Row<'_>> for super::library::Book {
     type Error = rusqlite::Error;
 
@@ -106,6 +138,7 @@ partial AS (
 		c1.ContentID,
 		chapters.ContentID AS ChapterContentID,
 		c1.VolumeIndex,
+        c1.BookTitle,
 		chapters.Title AS ChapterTitle
 	FROM
 		Content AS c1
@@ -119,6 +152,7 @@ chapter_titles AS (
         VolumeIndex,
 		ContentID,
 		ChapterContentID,
+        BookTitle,
 		COALESCE(ChapterTitle,
 			(
 				SELECT
@@ -139,6 +173,7 @@ SELECT
 	b.ContentID
     , b.Text
     , ct.ChapterTitle
+    , ct.BookTitle
 FROM
 	Bookmark b
 LEFT JOIN
@@ -170,6 +205,7 @@ partial AS (
 		c1.ContentID,
 		chapters.ContentID AS ChapterContentID,
 		c1.VolumeIndex,
+        c1.BookTitle,
 		chapters.Title AS ChapterTitle
 	FROM
 		Content AS c1
@@ -183,6 +219,7 @@ chapter_titles AS (
         VolumeIndex,
 		ContentID,
 		ChapterContentID,
+        BookTitle,
 		COALESCE(ChapterTitle,
 			(
 				SELECT
@@ -203,6 +240,7 @@ SELECT
 	b.ContentID
     , b.Text
     , ct.ChapterTitle
+    , ct.BookTitle
 FROM
 	Bookmark b
 LEFT JOIN

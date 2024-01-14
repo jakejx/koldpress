@@ -1,14 +1,13 @@
-use clap::{Args, Parser, Subcommand};
+use std::fmt::Display;
+
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
 #[command(name = "koldpress")]
 pub(crate) struct Cli {
     /// Path to the Kobo sqlite db.
-    #[arg(short, long)]
+    #[arg(short, long, global = true, help = "Path to Kobo DB")]
     pub(crate) db_path: Option<std::path::PathBuf>,
-    /// subcommands
-    #[command(subcommand)]
-    pub(crate) command: Commands,
     #[arg(
         long,
         short = 'v',
@@ -17,6 +16,9 @@ pub(crate) struct Cli {
         help = "Increase logging verbosity",
     )]
     pub(crate) verbose: u8,
+    /// subcommands
+    #[command(subcommand)]
+    pub(crate) command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
@@ -53,4 +55,14 @@ pub(crate) enum BookmarkCommands {
 pub(crate) struct ExtractArgs {
     #[arg(short, long, default_value_t = false)]
     pub(crate) all: bool,
+    #[arg(value_enum)]
+    #[arg(short, long, default_value_t = Format::Json)]
+    pub(crate) format: Format,
+}
+
+#[derive(ValueEnum, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub(crate) enum Format {
+    Json,
+    #[value(name = "md")]
+    Markdown,
 }
