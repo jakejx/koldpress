@@ -36,6 +36,7 @@ pub struct Bookmark {
 #[derive(Debug, Serialize)]
 pub struct Chapter {
     title: String,
+    bookmarks: Vec<Bookmark>,
     children: Vec<Chapter>,
 }
 
@@ -84,7 +85,10 @@ impl Library {
         Ok(bookmarks)
     }
 
-    pub fn get_bookmarks_for_book(&self, book: &Book) -> Result<Vec<Bookmark>> {
+    // TODO: for now we return a flat list, eventually we can use the epub
+    // information to create a tree based on the TOC instead.
+    pub fn get_bookmarks_for_book(&self, book: &Book) -> Result<Vec<Chapter>> {
+        // TODO: extract out the logic for retrieving bookmarks from grouping them by chapter
         let sql = db::bookmarks_for_book_query();
         info!(
             query = sql,
@@ -95,6 +99,42 @@ impl Library {
         let bookmarks = stmt
             .query_map([book.content_id.as_str()], |row| Bookmark::try_from(row))?
             .collect::<core::result::Result<Vec<_>, _>>()?;
-        Ok(bookmarks)
+        info!("Extracted {} bookmarks", bookmarks.len());
+        let mut chapters: Vec<Chapter> = Vec::new();
+        let mut current_chapter: Option<Chapter> = None;
+        for bookmark in bookmarks {
+            match current_chapter {
+                None => {
+                    current_chapter.replace(Chapter {
+                        title: bookmark.chapter_title.clone().unwrap_or("".to_string()),
+                        bookmarks: vec![],
+                        children: vec![],
+                    });
+                }
+                Some(ref chapter)
+                    if chapter.title
+                        != bookmark.chapter_title.clone().unwrap_or("".to_string()) =>
+                {
+                    let next_chapter = Chapter {
+                        title: bookmark.chapter_title.clone().unwrap_or("".to_string()),
+                        bookmarks: vec![],
+                        children: vec![],
+                    };
+                    let previous_chapter = current_chapter.replace(next_chapter);
+                    chapters.push(previous_chapter.expect("Chapter cannot be None"));
+                }
+                _ => (),
+            };
+
+            if let Some(chapter) = current_chapter.as_mut() {
+                chapter.bookmarks.push(bookmark);
+            }
+        }
+
+        if let Some(chapter) = current_chapter {
+            chapters.push(chapter);
+        }
+
+        Ok(chapters)
     }
 }
