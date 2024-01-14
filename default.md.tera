@@ -1,0 +1,10 @@
+# Highlights
+
+{% for chapter in chapters -%}
+## {{ chapter.title }}
+    {%- for bookmark in chapter.bookmarks %}
+> [!quote]
+> {{ bookmark.text | trim | capitalize }}
+{% endfor -%}
+
+{% endfor -%}

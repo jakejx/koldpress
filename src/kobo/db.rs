@@ -1,5 +1,5 @@
 use rusqlite::Row;
-use sea_query::{Expr, Iden, Query, SelectStatement, WithClause};
+use sea_query::{Expr, Iden, Query, SelectStatement};
 
 #[derive(Debug, Clone)]
 pub(crate) struct BookmarkRow {
@@ -10,12 +10,12 @@ pub(crate) struct BookmarkRow {
     pub text: String,
 }
 
-impl Into<super::library::Bookmark> for BookmarkRow {
-    fn into(self) -> super::library::Bookmark {
+impl From<BookmarkRow> for super::library::Bookmark {
+    fn from(val: BookmarkRow) -> Self {
         super::library::Bookmark {
-            content_id: self.content_id,
-            chapter_title: self.chapter_title,
-            text: self.text,
+            content_id: val.content_id,
+            chapter_title: val.chapter_title,
+            text: val.text,
         }
     }
 }
@@ -70,26 +70,17 @@ pub(crate) enum Content {
     ContentId,
     #[iden = "MimeType"]
     MimeType,
-    #[iden = "VolumeIndex"]
-    VolumeIndex,
-    #[iden = "ChapterIDBookmarked"]
-    ChapterIDBookmarked,
 }
 
 #[derive(Iden, Copy, Clone)]
 #[iden = "Bookmark"]
 pub(crate) enum Bookmark {
+    #[allow(dead_code)]
     Table,
     #[iden = "ContentID"]
     ContentId,
     #[iden = "Text"]
     Text,
-    #[iden = "Hidden"]
-    Hidden,
-    #[iden = "VolumeID"]
-    VolumeId,
-    #[iden = "ChapterProgress"]
-    ChapterProgress,
 }
 
 pub fn books_query() -> SelectStatement {
@@ -183,7 +174,8 @@ WHERE
 	AND Text IS NOT NULL
 	AND Text <> ''
 ORDER BY
-    ct.VolumeIndex ASC
+    ct.BookTitle ASC
+    , ct.VolumeIndex ASC
     , b.ChapterProgress ASC
 "#;
 
@@ -251,7 +243,8 @@ WHERE
 	AND Text <> ''
     AND VolumeID = ?1 -- the only difference with the previous query
 ORDER BY
-    ct.VolumeIndex ASC
+    ct.BookTitle ASC
+    , ct.VolumeIndex ASC
     , b.ChapterProgress ASC
 "#;
 

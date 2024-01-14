@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{path::PathBuf};
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
@@ -58,11 +58,22 @@ pub(crate) struct ExtractArgs {
     #[arg(value_enum)]
     #[arg(short, long, default_value_t = Format::Json)]
     pub(crate) format: Format,
+    #[arg(short, long, help = "Output directory")]
+    pub(crate) output: Option<PathBuf>,
 }
 
-#[derive(ValueEnum, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(ValueEnum, Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub(crate) enum Format {
     Json,
     #[value(name = "md")]
     Markdown,
+}
+
+impl Format {
+    pub fn extension(&self) -> String {
+        match self {
+            Format::Json => "json".to_string(),
+            Format::Markdown => "md".to_string(),
+        }
+    }
 }

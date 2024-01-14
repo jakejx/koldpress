@@ -15,10 +15,12 @@ etcetera = "0.8.0"
 inquire = "0.6.2"
 itertools = "0.12.0"
 rusqlite = { version = "0.30.0", features = ["bundled"] }
+sanitize-filename = "0.5.0"
 sea-query = "0.30.6"
 sea-query-rusqlite = "0.5.0"
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.111"
+tera = "1.19.1"
 thiserror = "1.0.56"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18" }

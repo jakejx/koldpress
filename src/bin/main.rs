@@ -1,10 +1,14 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use cli::ExtractArgs;
+use cli::{ExtractArgs, Format};
 use etcetera::{choose_app_strategy, AppStrategy};
 use inquire::Select;
-use koldpress::config::Config;
 use koldpress::kobo::Library;
+use koldpress::{config::Config, format};
+use sanitize_filename::sanitize;
+use std::fs::File;
+use std::io::stdout;
+use std::path::Path;
 use std::{
     io::{self, Write},
     str::FromStr,
@@ -44,20 +48,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let res = match args.command {
         cli::Commands::Books(_) => todo!(),
         cli::Commands::Bookmarks(bookmarks) => match bookmarks.command {
-            cli::BookmarkCommands::Extract(extract) => {
-                extract_highlights(library, extract, Box::new(stdout))
-            }
+            cli::BookmarkCommands::Extract(extract) => extract_highlights(library, extract),
         },
     }?;
 
     Ok(res)
 }
 
-fn extract_highlights(
-    library: Library,
-    args: ExtractArgs,
-    mut io: Box<dyn Write>,
-) -> anyhow::Result<()> {
+fn extract_highlights(library: Library, args: ExtractArgs) -> anyhow::Result<()> {
     let bookmarks = match args.all {
         true => library.get_bookmarks()?,
         false => {
@@ -68,11 +66,34 @@ fn extract_highlights(
         }
     };
 
-    match args.format {
-        cli::Format::Json => write!(io, "{}", serde_json::to_string_pretty(&bookmarks)?)?,
-        cli::Format::Markdown => todo!(),
+    if let Some(ref path) = args.output {
+        if !path.is_dir() {
+            writeln!(stdout(), "Output must be a directory")?;
+            std::process::exit(1);
+        }
+    }
+
+    for (title, chapters) in bookmarks {
+        let io = &mut get_io(title, args.format, args.output.as_deref())?;
+        match args.format {
+            cli::Format::Json => format::json(io, &chapters)?,
+            cli::Format::Markdown => {
+                format::markdown(io, &chapters)?;
+            }
+        }
     }
     Ok(())
+}
+
+fn get_io(title: String, format: Format, output: Option<&Path>) -> anyhow::Result<Box<dyn Write>> {
+    match output {
+        Some(path) => {
+            let path = path.join(format!("{}.{}", sanitize(title), format.extension()));
+            info!("Opening file: {}", path.display());
+            Ok(Box::new(File::create(path)?))
+        }
+        None => Ok(Box::new(std::io::stdout())),
+    }
 }
 
 fn init_tracing(verbosity: u8) {

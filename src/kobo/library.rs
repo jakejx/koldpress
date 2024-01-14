@@ -8,7 +8,7 @@ use sea_query::{Expr, SqliteQueryBuilder};
 use sea_query_rusqlite::RusqliteBinder;
 use serde::Serialize;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap},
     fmt::Display,
     path::PathBuf,
 };
