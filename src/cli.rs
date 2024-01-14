@@ -1,13 +1,13 @@
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
 #[command(name = "koldpress")]
-pub(crate) struct Cli {
+pub struct Cli {
     /// Path to the Kobo sqlite db.
     #[arg(short, long, global = true, help = "Path to Kobo DB")]
-    pub(crate) db_path: Option<std::path::PathBuf>,
+    pub db_path: Option<std::path::PathBuf>,
     #[arg(
         long,
         short = 'v',
@@ -15,14 +15,14 @@ pub(crate) struct Cli {
         global = true,
         help = "Increase logging verbosity",
     )]
-    pub(crate) verbose: u8,
+    pub verbose: u8,
     /// subcommands
     #[command(subcommand)]
-    pub(crate) command: Commands,
+    pub command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum Commands {
+pub enum Commands {
     #[command(arg_required_else_help = true)]
     Books(BooksArgs),
     #[command(arg_required_else_help = true)]
@@ -30,40 +30,40 @@ pub(crate) enum Commands {
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct BooksArgs {
+pub struct BooksArgs {
     #[command(subcommand)]
     command: BookCommands,
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum BookCommands {
+pub enum BookCommands {
     List,
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct BookmarkArgs {
+pub struct BookmarkArgs {
     #[command(subcommand)]
-    pub(crate) command: BookmarkCommands,
+    pub command: BookmarkCommands,
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum BookmarkCommands {
+pub enum BookmarkCommands {
     Extract(ExtractArgs),
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct ExtractArgs {
+pub struct ExtractArgs {
     #[arg(short, long, default_value_t = false)]
-    pub(crate) all: bool,
+    pub all: bool,
     #[arg(value_enum)]
     #[arg(short, long, default_value_t = Format::Json)]
-    pub(crate) format: Format,
+    pub format: Format,
     #[arg(short, long, help = "Output directory")]
-    pub(crate) output: Option<PathBuf>,
+    pub output: Option<PathBuf>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
-pub(crate) enum Format {
+pub enum Format {
     Json,
     #[value(name = "md")]
     Markdown,

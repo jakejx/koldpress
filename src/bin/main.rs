@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use cli::{ExtractArgs, Format};
 use etcetera::{choose_app_strategy, AppStrategy};
 use inquire::Select;
+use koldpress::cli::{self, ExtractArgs, Format};
 use koldpress::kobo::Library;
 use koldpress::{config::Config, format};
 use sanitize_filename::sanitize;
@@ -15,8 +15,6 @@ use std::{
 };
 use tracing::info;
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*};
-
-mod cli;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdout = std::io::stdout();
