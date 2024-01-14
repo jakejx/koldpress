@@ -1,5 +1,5 @@
 use rusqlite::Row;
-use sea_query::{Expr, Iden, Query, SelectStatement};
+use sea_query::{Expr, Iden, Query, SelectStatement, WithClause};
 
 impl TryFrom<&Row<'_>> for super::library::Book {
     type Error = rusqlite::Error;
@@ -116,6 +116,7 @@ WHERE
 -- Fill missing chapter titles based on volume index
 chapter_titles AS (
 	SELECT
+        VolumeIndex,
 		ContentID,
 		ChapterContentID,
 		COALESCE(ChapterTitle,
@@ -135,23 +136,85 @@ chapter_titles AS (
 )
 -- JOIN with the bookmarks and try both ContentIDs
 SELECT
-	b.ContentID,
-	b.Text,
-	COALESCE((
-		SELECT
-			ChapterTitle FROM chapter_titles
-		WHERE
-			ChapterContentID LIKE b.ContentID || '%'),
-       (SELECT
-            ChapterTitle FROM chapter_titles ct
-        WHERE
-            ct.ContentID = b.ContentID)) AS ChapterTitle
+	b.ContentID
+    , b.Text
+    , ct.ChapterTitle
 FROM
 	Bookmark b
+LEFT JOIN
+    chapter_titles ct ON (ct.ChapterContentID LIKE b.ContentID || '%' OR ct.ContentID = b.ContentID)
 WHERE
 	Hidden = 'false'
 	AND Text IS NOT NULL
 	AND Text <> ''
+ORDER BY
+    ct.VolumeIndex ASC
+    , b.ChapterProgress ASC
+"#;
+
+// TODO: remove this duplicate query. Rust does not allow using the const string as a literal for formatting.
+const BOOKMARKS_QUERY_FOR_BOOK: &str = r#"
+WITH chapters AS (
+	SELECT
+		ContentID,
+		Title,
+		VolumeIndex
+	FROM
+		Content
+	WHERE
+		ContentType = 899
+),
+partial AS (
+	SELECT
+		c1.BookTitle,
+		c1.ContentID,
+		chapters.ContentID AS ChapterContentID,
+		c1.VolumeIndex,
+		chapters.Title AS ChapterTitle
+	FROM
+		Content AS c1
+	LEFT JOIN chapters ON chapters.ContentID LIKE c1.ContentID || '%'
+WHERE
+	ContentType = 9
+),
+-- Fill missing chapter titles based on volume index
+chapter_titles AS (
+	SELECT
+        VolumeIndex,
+		ContentID,
+		ChapterContentID,
+		COALESCE(ChapterTitle,
+			(
+				SELECT
+					ChapterTitle FROM partial p2
+				WHERE
+					ChapterTitle IS NOT NULL
+					AND p2.BookTitle = p1.BookTitle
+					AND p2.VolumeIndex < p1.VolumeIndex
+				ORDER BY
+					BookTitle,
+					VolumeIndex DESC
+				LIMIT 1)) AS ChapterTitle
+	FROM
+		partial p1
+)
+-- JOIN with the bookmarks and try both ContentIDs
+SELECT
+	b.ContentID
+    , b.Text
+    , ct.ChapterTitle
+FROM
+	Bookmark b
+LEFT JOIN
+    chapter_titles ct ON (ct.ChapterContentID LIKE b.ContentID || '%' OR ct.ContentID = b.ContentID)
+WHERE
+	Hidden = 'false'
+	AND Text IS NOT NULL
+	AND Text <> ''
+    AND VolumeID = ?1 -- the only difference with the previous query
+ORDER BY
+    ct.VolumeIndex ASC
+    , b.ChapterProgress ASC
 "#;
 
 pub fn bookmarks_query() -> String {
@@ -159,5 +222,5 @@ pub fn bookmarks_query() -> String {
 }
 
 pub fn bookmarks_for_book_query() -> String {
-    BOOKMARKS_QUERY.to_string() + "AND VolumeID = ?1"
+    BOOKMARKS_QUERY_FOR_BOOK.to_string()
 }

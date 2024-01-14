@@ -33,6 +33,12 @@ pub struct Bookmark {
     pub text: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Chapter {
+    title: String,
+    children: Vec<Chapter>,
+}
+
 impl Library {
     pub fn new(db_path: PathBuf) -> Result<Self> {
         let db = Connection::open_with_flags(

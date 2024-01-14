@@ -9,14 +9,8 @@ use std::{
     io::{self, Write},
     str::FromStr,
 };
-use tracing::{info, Level};
-use tracing_subscriber::{
-    filter::{self, LevelFilter},
-    fmt,
-    prelude::__tracing_subscriber_SubscriberExt,
-    util::SubscriberInitExt,
-    EnvFilter,
-};
+use tracing::info;
+use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*};
 
 mod cli;
 
